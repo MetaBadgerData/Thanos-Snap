@@ -19,6 +19,53 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r sophie}
 
+#SAMPLE IDEAS
+  #initial population size 200 (cats)
+  #p= A (Long hair) = .44
+  #q = a (Short hair) = .56
+  #Bottleneck event affects A (Long hair)?
+
+
+#code from https://evolutionarygenetics.github.io/Chapter3.html
+#code from https://cran.r-project.org/web/packages/evolved/vignettes/popgen_drift.html#:~:text=file_name.jpg)-,Genetic%20drift:%20building%20intuition,You%20have%20just%20observed%20drift!
+
+#population & # of alleles
+N<-200
+n_alleles<-2*N
+
+#hardy weinberg: p^2+2pq+q^2=1 & genotype freqs
+p<-.44
+q<-1-p
+
+AA<-p^2
+Aa<-2*(p*q)
+aa<-q^2
+genotype_freq<-c(AA,Aa,aa)
+print(genotype_freq)
+
+
+#drift example: freq of p in generation 1
+p1<- rbinom(1,n_alleles,p)/n_alleles
+print(p1)
+
+
+# *reminder to also add freq of q & genotype freqs into code*
+# *reminder2 to create a function for allele & genotype freqs over multiple gens*
+
+
+#drift example2: freq of p across multiple (10) generations in Wright-Fisher population
+
+#install.packages("evolved")
+library(evolved)
+
+generations<-10
+model<-WFDriftSim(N,n_gen,p)
+print(model)
+
+
+# *reminder3 to add other factors (formulas relating to drift) into code*
+# *reminder4 to add in bottleneck event into code*
+
 ```
 
 ## Section Three
