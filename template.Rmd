@@ -25,34 +25,45 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r White}
 #Link to github repo: https://github.com/rstudio/shiny-examples/blob/main/001-hello/app.R
+library(ggplot2)
 library(shiny)
+library(shinythemes)
+
 
 # Define UI for app that draws a histogram ----
-ui <- fluidPage(
-
+ui <- fluidPage(theme = shinytheme("superhero"),
   # App title ----
-  titlePanel("Hello Shiny!"),
+  titlePanel("Thanos Snap!"),
 
   # Sidebar layout with input and output definitions ----
   sidebarLayout(
 
     # Sidebar panel for inputs ----
     sidebarPanel(
-
       # Input: Slider for the number of bins ----
-      sliderInput(inputId = "bins",
-                  label = "Number of bins:",
-                  min = 1,
-                  max = 50,
-                  value = 30)
+      numericInput("popInput",
+                   "Set Population:",
+                   value = 50,
+                   min = 1)
 
     ),
+    
+    
 
     # Main panel for displaying outputs ----
     mainPanel(
+      
+      
+      
+      plotOutput("bottleneckPlot", height = "300px"),
 
-      # Output: Histogram ----
-      plotOutput(outputId = "distPlot")
+      div(style = "text-align: center;",
+          actionButton("growButton", "GROW"),
+          actionButton("stopButton", "STOP"),
+          actionButton("goButton", "SNAP!"),
+          br(), br(),
+          textOutput("nText")
+      )
 
     )
   )
@@ -60,6 +71,10 @@ ui <- fluidPage(
 
 # Define server logic required to draw a histogram ----
 server <- function(input, output) {
+  population <- reactiveVal(50)
+  history <- reactiveVal(c(50)) 
+  growing <- reactiveVal(FALSE)
+  timer <- reactiveTimer(1000)
 
   # Histogram of the Old Faithful Geyser Data ----
   # with requested number of bins
@@ -69,21 +84,70 @@ server <- function(input, output) {
   # 1. It is "reactive" and therefore should be automatically
   #    re-executed when inputs (input$bins) change
   # 2. Its output type is a plot
-  output$distPlot <- renderPlot({
+  
+  observeEvent(input$popInput, {
+    population(input$popInput)
+    history(c(input$popInput))
 
-    x    <- faithful$waiting
-    bins <- seq(min(x), max(x), length.out = input$bins + 1)
+  })
+  
+  observeEvent(input$goButton, {
+    newPop <- population() / 2
+    population(newPop)
+    history(c(history(), newPop))
+  })
+  
+  observeEvent(input$growButton, {
+    growing(TRUE)
+  })
+  
+  observeEvent(input$stopButton, {
+    growing(FALSE)
+  })
+  
+  output$nText <- renderText({
+    paste("Current Population:", population())
+  })
+  
+  observe({
+    timer()
+    if (growing()) {
+      newPop <- population() * 1.05  # 5% growth
+      population(newPop)
+      #history(c(history(), newPop))
+      newHist <- c(history(), newPop)
+      if (length(newHist) > 200) {
+        newHist <- tail(newHist, 200)
+      }
+      history(newHist)
+    }
+  })
+  
+  output$bottleneckPlot <- renderPlot({
+    pops <- history()
+    gens <- seq_along(history())
 
-    hist(x, breaks = bins, col = "#75AADB", border = "white",
-         xlab = "Waiting time to next eruption (in mins)",
-         main = "Histogram of waiting times")
-
-    })
-
+    plot(gens, pops, type = "n",
+       xlab = "Time Step",
+       ylab = "Population",
+       main = "Dynamic Population Growth",
+       ylim = c(0, max(pops) * 1.1))
+    
+    polygon(
+      c(gens, rev(gens)),
+      c(rep(0, length(pops)), rev(pops)),
+      col = "lightgreen",
+      border = "darkgreen"
+    )
+    
+    lines(gens, pops, lwd = 2)
+  
+  })
 }
 
 # Create Shiny app ----
 shinyApp(ui = ui, server = server)
+
 ```
 
 
