@@ -25,76 +25,66 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r White}
 #Link to github repo: https://github.com/rstudio/shiny-examples/blob/main/001-hello/app.R
-library(ggplot2)
 library(shiny)
 library(shinythemes)
 
-
-# Define UI for app that draws a histogram ----
-ui <- fluidPage(theme = shinytheme("superhero"),
-  # App title ----
+ui <- fluidPage(
+  theme = shinytheme("superhero"),
   titlePanel("Thanos Snap!"),
-
-  # Sidebar layout with input and output definitions ----
+  
   sidebarLayout(
-
-    # Sidebar panel for inputs ----
     sidebarPanel(
-      # Input: Slider for the number of bins ----
-      numericInput("popInput",
-                   "Set Population:",
-                   value = 50,
-                   min = 1)
-
+      numericInput("popInput", "Set Population:", value = 50, min = 1),
+      br(),
+      actionButton("growButton", "GROW"),
+      actionButton("stopButton", "STOP"),
+      actionButton("goButton", "SNAP!")
     ),
     
-    
-
-    # Main panel for displaying outputs ----
     mainPanel(
-      
-      
-      
-      plotOutput("bottleneckPlot", height = "300px"),
-
-      div(style = "text-align: center;",
-          actionButton("growButton", "GROW"),
-          actionButton("stopButton", "STOP"),
-          actionButton("goButton", "SNAP!"),
-          br(), br(),
-          textOutput("nText")
-      )
-
+      plotOutput("bottleneckPlot", height = "400px"),
+      br(),
+      textOutput("nText")
     )
   )
 )
 
-# Define server logic required to draw a histogram ----
-server <- function(input, output) {
+server <- function(input, output, session) {
+  # Reactive values
   population <- reactiveVal(50)
-  history <- reactiveVal(c(50)) 
+  history <- reactiveVal(c(50))
   growing <- reactiveVal(FALSE)
-  timer <- reactiveTimer(1000)
-
-  # Histogram of the Old Faithful Geyser Data ----
-  # with requested number of bins
-  # This expression that generates a histogram is wrapped in a call
-  # to renderPlot to indicate that:
-  #
-  # 1. It is "reactive" and therefore should be automatically
-  #    re-executed when inputs (input$bins) change
-  # 2. Its output type is a plot
+  max_pop <- reactiveVal(50)
   
+  # Timer for continuous growth
+  observe({
+    if (growing()) {
+      invalidateLater(200, session)  # Update every 200ms for smooth growth
+      isolate({
+        current_pop <- population()
+        new_pop <- current_pop * 1.05
+        population(new_pop)
+        
+        # Update max population if needed
+        if (new_pop > max_pop()) {
+          max_pop(new_pop)
+        }
+        
+        # Update history
+        new_history <- c(history(), new_pop)
+        if (length(new_history) > 100) {
+          new_history <- tail(new_history, 100)
+        }
+        history(new_history)
+      })
+    }
+  })
+  
+  # Event observers
   observeEvent(input$popInput, {
     population(input$popInput)
     history(c(input$popInput))
-
-  })
-  
-  observeEvent(input$goButton, {
-    newPop <- population() / 2
-    population(newPop)
-    history(c(history(), newPop))
+    max_pop(input$popInput)
   })
   
   observeEvent(input$growButton, {
@@ -105,49 +95,70 @@ server <- function(input, output) {
     growing(FALSE)
   })
   
-  output$nText <- renderText({
-    paste("Current Population:", population())
+  observeEvent(input$goButton, {
+    growing(FALSE)
+    new_pop <- max(1, round(population() / 2))
+    population(new_pop)
+    new_history <- c(history(), new_pop)
+    if (length(new_history) > 100) {
+      new_history <- tail(new_history, 100)
+    }
+    history(new_history)
   })
   
-  observe({
-    timer()
-    if (growing()) {
-      newPop <- population() * 1.05  # 5% growth
-      population(newPop)
-      #history(c(history(), newPop))
-      newHist <- c(history(), newPop)
-      if (length(newHist) > 200) {
-        newHist <- tail(newHist, 200)
-      }
-      history(newHist)
-    }
+  # Outputs
+  output$nText <- renderText({
+    paste("Current Population:", round(population()))
   })
   
   output$bottleneckPlot <- renderPlot({
     pops <- history()
-    gens <- seq_along(history())
-
+    gens <- 1:length(pops)
+    
+    # Set up plot area
+    par(bg = "#2C3E50", fg = "white", col.main = "white", 
+        col.lab = "white", col.axis = "white")
+    
     plot(gens, pops, type = "n",
-       xlab = "Time Step",
-       ylab = "Population",
-       main = "Dynamic Population Growth",
-       ylim = c(0, max(pops) * 1.1))
+         xlab = "Time Step", ylab = "Population",
+         main = "Population Dynamics: Thanos Snap!",
+         ylim = c(0, max_pop() * 1.1),
+         xlim = c(1, max(10, length(pops))),
+         cex.main = 1.2, cex.lab = 1.1, font.main = 2)
     
-    polygon(
-      c(gens, rev(gens)),
-      c(rep(0, length(pops)), rev(pops)),
-      col = "lightgreen",
-      border = "darkgreen"
-    )
+    # Add grid
+    grid(col = "gray30", lty = 3)
     
-    lines(gens, pops, lwd = 2)
-  
+    # Fill area under curve
+    polygon(c(gens, rev(gens)), c(pops, rep(0, length(pops))),
+            col = adjustcolor("lightgreen", alpha.f = 0.6),
+            border = NA)
+    
+    # Add line
+    lines(gens, pops, type = "l", lwd = 3, col = "#27AE60")
+    
+    # Add points
+    points(gens, pops, pch = 21, bg = "#2ECC71", col = "white", cex = 1.2)
+    
+    # Highlight current point
+    if (length(pops) > 0) {
+      points(length(pops), tail(pops, 1), pch = 21, bg = "red", 
+             col = "white", cex = 2, lwd = 2)
+    }
+    
+    # Add legend
+    legend("topright", 
+           legend = c("Population", "Current"),
+           pch = c(21, 21),
+           pt.bg = c("#2ECC71", "red"),
+           col = c("white", "white"),
+           pt.cex = c(1.2, 2),
+           bg = adjustcolor("#34495E", alpha.f = 0.8),
+           box.col = "white")
   })
 }
 
-# Create Shiny app ----
 shinyApp(ui = ui, server = server)
-
 ```
 
 
