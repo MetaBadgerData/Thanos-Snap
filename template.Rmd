@@ -38,7 +38,12 @@ ui <- fluidPage(
       br(),
       actionButton("growButton", "GROW"),
       actionButton("stopButton", "STOP"),
-      actionButton("goButton", "SNAP!")
+      actionButton("goButton", "SNAP!"),
+      h4("Allele Frequencies"),
+      numericInput("pFreq", "Dominant Allele Frequency (p):", 
+                  value = 0.5, min = 0, max = 1, step = 0.1),
+      numericInput("qFreq", "Recessive Allele Frequency (q):", 
+                  value = 0.5, min = 0, max = 1, step = 0.1)
     ),
     
     mainPanel(
@@ -55,6 +60,31 @@ server <- function(input, output, session) {
   history <- reactiveVal(c(50))
   growing <- reactiveVal(FALSE)
   max_pop <- reactiveVal(50)
+  
+  
+  
+  # Calculate genotype counts based on Hardy-Weinberg
+  genotype_counts <- reactive({
+    pop <- population()
+    p <- input$pFreq
+    q <- input$qFreq
+    
+    # Ensure frequencies sum to 1
+    total <- p + q
+    if (total > 0) {
+      p <- p / total
+      q <- q / total
+    }
+    
+    
+    list(
+      dominant_homozygous = round(pop * p^2),
+      heterozygous = round(pop * 2 * p * q),
+      recessive_homozygous = round(pop * q^2)
+    )
+  })
+  
+  
   
   # Timer for continuous growth
   observe({
@@ -105,6 +135,42 @@ server <- function(input, output, session) {
     }
     history(new_history)
   })
+  
+  
+  
+  # Update q frequency when p changes to maintain sum = 1
+  observeEvent(input$pFreq, {
+    updateNumericInput(session, "qFreq", value = 1 - input$pFreq)
+  })
+  
+  observeEvent(input$qFreq, {
+    updateNumericInput(session, "pFreq", value = 1 - input$qFreq)
+  })
+  
+  # Outputs
+  output$nText <- renderText({
+    counts <- genotype_counts()
+    paste("Current Population:", round(population()),
+          "| AA:", counts$dominant_homozygous,
+          "| Aa:", counts$heterozygous, 
+          "| aa:", counts$recessive_homozygous)
+  })
+  
+  output$genotypeTable <- renderTable({
+    counts <- genotype_counts()
+    data.frame(
+      Genotype = c("AA (Dominant Homozygous)", "Aa (Heterozygous)", "aa (Recessive Homozygous)"),
+      Count = c(counts$dominant_homozygous, counts$heterozygous, counts$recessive_homozygous),
+      Percentage = c(
+        round(counts$dominant_homozygous / population() * 100, 1),
+        round(counts$heterozygous / population() * 100, 1),
+        round(counts$recessive_homozygous / population() * 100, 1)
+      )
+    )
+  }, bordered = TRUE, align = 'c')
+  
+  
+  
   
   # Outputs
   output$nText <- renderText({
