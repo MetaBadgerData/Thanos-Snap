@@ -45,6 +45,23 @@ fisher <- function(af0, pop, gens){
   stats <- data.frame(gen = 0:gens, allele_frequency = af, population = p)
   return(stats)
 }
+
+#takes in a dataframe that was created from the "fisher" function
+snap <- function(df){
+  
+  #creates a vector called prev_gen that holds the statistics (gen #, allele frequency, population) of the latest generation
+  prev_gen <- unlist(df[nrow(df),])
+  
+  #kills half the population, with new_pop being the population that remains
+  new_pop <- prev_gen[3]/2
+  
+  ##uses the binomial distribution to calculate the propability and the new frequency of the allele for the now halved population
+  x <- rbinom(1, size = 2*new_pop, prob = prev_gen[2])
+  new_af <- x/(2*new_pop)
+  
+  #returns a dataframe containing the new population and allele frequency after the bottleneck event
+  return(data.frame(gen = prev_gen[1]+1, allele_frequency = prev_gen[2], population = new_pop))
+}
 ```
 
 ## Section Two
