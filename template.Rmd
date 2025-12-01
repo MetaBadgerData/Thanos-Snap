@@ -11,9 +11,41 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Section One
 
 ```{r kayla}
-
+#grows the population for the next generation by taking in the population of the previous generation
+grow_pop <- function(pop){
+  
+  #adds 0.3 of the given pop to the given pop to get the new population
+  new_pop <- pop + (0.3*pop)
+  
+  #rounds up to the nearest whole number
+  new_pop <- floor(new_pop)
+  
+  #returns the new population
+  return(new_pop)
+}
+#the function takes in the frequency of the allele (af0), the initial population (pop), and the number of generations it will run (gens)
+fisher <- function(af0, pop, gens){
+  #creates a numeric vector for the allele frequency and population with the length being the number of gens plus one for the initial generation 
+  af = numeric(gens + 1)
+  af[1] <- af0
+  
+  p <- numeric(gens + 1)
+  p[1] <- pop
+  
+  #calculates the allele frequency and population for each generation after the initial gen
+  for(i in 1:gens){
+    #send the pop for the current gen to a function that will calculate the population of the next gen
+    p[i+1] <- grow_pop(p[i]) 
+    #uses the binomial distribution to calculate the propability and the new frequency of the allele for the next gen
+    x <- rbinom(1, size = 2*p[i+1], prob = af[i])
+    af[i+1] <- x/(2*p[i+1])
+  }
+  
+  #creates and returns a dataframe displaying the allele frequency and population of each generation
+  stats <- data.frame(gen = 0:gens, allele_frequency = af, population = p)
+  return(stats)
+}
 ```
-
 
 ## Section Two
 
@@ -85,8 +117,6 @@ server <- function(input, output) {
 # Create Shiny app ----
 shinyApp(ui = ui, server = server)
 ```
-
-
 
 ## Section Four
 
