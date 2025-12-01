@@ -63,63 +63,204 @@ print(p1)
 ```{r White}
 #Link to github repo: https://github.com/rstudio/shiny-examples/blob/main/001-hello/app.R
 library(shiny)
+library(shinythemes)
 
-# Define UI for app that draws a histogram ----
 ui <- fluidPage(
-
-  # App title ----
-  titlePanel("Hello Shiny!"),
-
-  # Sidebar layout with input and output definitions ----
+  theme = shinytheme("superhero"),
+  titlePanel("Thanos Snap!"),
+  
   sidebarLayout(
-
-    # Sidebar panel for inputs ----
     sidebarPanel(
-
-      # Input: Slider for the number of bins ----
-      sliderInput(inputId = "bins",
-                  label = "Number of bins:",
-                  min = 1,
-                  max = 50,
-                  value = 30)
-
+      numericInput("popInput", "Set Population:", value = 50, min = 1),
+      br(),
+      actionButton("growButton", "GROW"),
+      actionButton("stopButton", "STOP"),
+      actionButton("goButton", "SNAP!"),
+      h4("Allele Frequencies"),
+      numericInput("pFreq", "Dominant Allele Frequency (p):", 
+                  value = 0.5, min = 0, max = 1, step = 0.1),
+      numericInput("qFreq", "Recessive Allele Frequency (q):", 
+                  value = 0.5, min = 0, max = 1, step = 0.1)
     ),
-
-    # Main panel for displaying outputs ----
+    
     mainPanel(
-
-      # Output: Histogram ----
-      plotOutput(outputId = "distPlot")
-
+      plotOutput("bottleneckPlot", height = "400px"),
+      br(),
+      textOutput("nText")
     )
   )
 )
 
-# Define server logic required to draw a histogram ----
-server <- function(input, output) {
-
-  # Histogram of the Old Faithful Geyser Data ----
-  # with requested number of bins
-  # This expression that generates a histogram is wrapped in a call
-  # to renderPlot to indicate that:
-  #
-  # 1. It is "reactive" and therefore should be automatically
-  #    re-executed when inputs (input$bins) change
-  # 2. Its output type is a plot
-  output$distPlot <- renderPlot({
-
-    x    <- faithful$waiting
-    bins <- seq(min(x), max(x), length.out = input$bins + 1)
-
-    hist(x, breaks = bins, col = "#75AADB", border = "white",
-         xlab = "Waiting time to next eruption (in mins)",
-         main = "Histogram of waiting times")
-
-    })
-
+server <- function(input, output, session) {
+  # Reactive values
+  population <- reactiveVal(50)
+  history <- reactiveVal(c(50))
+  growing <- reactiveVal(FALSE)
+  max_pop <- reactiveVal(50)
+  
+  
+  
+  # Calculate genotype counts based on Hardy-Weinberg
+  genotype_counts <- reactive({
+    pop <- population()
+    p <- input$pFreq
+    q <- input$qFreq
+    
+    # Ensure frequencies sum to 1
+    total <- p + q
+    if (total > 0) {
+      p <- p / total
+      q <- q / total
+    }
+    
+    
+    list(
+      dominant_homozygous = round(pop * p^2),
+      heterozygous = round(pop * 2 * p * q),
+      recessive_homozygous = round(pop * q^2)
+    )
+  })
+  
+  
+  
+  # Timer for continuous growth
+  observe({
+    if (growing()) {
+      invalidateLater(200, session)  # Update every 200ms for smooth growth
+      isolate({
+        current_pop <- population()
+        new_pop <- current_pop * 1.05
+        population(new_pop)
+        
+        # Update max population if needed
+        if (new_pop > max_pop()) {
+          max_pop(new_pop)
+        }
+        
+        # Update history
+        new_history <- c(history(), new_pop)
+        if (length(new_history) > 100) {
+          new_history <- tail(new_history, 100)
+        }
+        history(new_history)
+      })
+    }
+  })
+  
+  # Event observers
+  observeEvent(input$popInput, {
+    population(input$popInput)
+    history(c(input$popInput))
+    max_pop(input$popInput)
+  })
+  
+  observeEvent(input$growButton, {
+    growing(TRUE)
+  })
+  
+  observeEvent(input$stopButton, {
+    growing(FALSE)
+  })
+  
+  observeEvent(input$goButton, {
+    growing(FALSE)
+    new_pop <- max(1, round(population() / 2))
+    population(new_pop)
+    new_history <- c(history(), new_pop)
+    if (length(new_history) > 100) {
+      new_history <- tail(new_history, 100)
+    }
+    history(new_history)
+  })
+  
+  
+  
+  # Update q frequency when p changes to maintain sum = 1
+  observeEvent(input$pFreq, {
+    updateNumericInput(session, "qFreq", value = 1 - input$pFreq)
+  })
+  
+  observeEvent(input$qFreq, {
+    updateNumericInput(session, "pFreq", value = 1 - input$qFreq)
+  })
+  
+  # Outputs
+  output$nText <- renderText({
+    counts <- genotype_counts()
+    paste("Current Population:", round(population()),
+          "| AA:", counts$dominant_homozygous,
+          "| Aa:", counts$heterozygous, 
+          "| aa:", counts$recessive_homozygous)
+  })
+  
+  output$genotypeTable <- renderTable({
+    counts <- genotype_counts()
+    data.frame(
+      Genotype = c("AA (Dominant Homozygous)", "Aa (Heterozygous)", "aa (Recessive Homozygous)"),
+      Count = c(counts$dominant_homozygous, counts$heterozygous, counts$recessive_homozygous),
+      Percentage = c(
+        round(counts$dominant_homozygous / population() * 100, 1),
+        round(counts$heterozygous / population() * 100, 1),
+        round(counts$recessive_homozygous / population() * 100, 1)
+      )
+    )
+  }, bordered = TRUE, align = 'c')
+  
+  
+  
+  
+  # Outputs
+  output$nText <- renderText({
+    paste("Current Population:", round(population()))
+  })
+  
+  output$bottleneckPlot <- renderPlot({
+    pops <- history()
+    gens <- 1:length(pops)
+    
+    # Set up plot area
+    par(bg = "#2C3E50", fg = "white", col.main = "white", 
+        col.lab = "white", col.axis = "white")
+    
+    plot(gens, pops, type = "n",
+         xlab = "Time Step", ylab = "Population",
+         main = "Population Dynamics: Thanos Snap!",
+         ylim = c(0, max_pop() * 1.1),
+         xlim = c(1, max(10, length(pops))),
+         cex.main = 1.2, cex.lab = 1.1, font.main = 2)
+    
+    # Add grid
+    grid(col = "gray30", lty = 3)
+    
+    # Fill area under curve
+    polygon(c(gens, rev(gens)), c(pops, rep(0, length(pops))),
+            col = adjustcolor("lightgreen", alpha.f = 0.6),
+            border = NA)
+    
+    # Add line
+    lines(gens, pops, type = "l", lwd = 3, col = "#27AE60")
+    
+    # Add points
+    points(gens, pops, pch = 21, bg = "#2ECC71", col = "white", cex = 1.2)
+    
+    # Highlight current point
+    if (length(pops) > 0) {
+      points(length(pops), tail(pops, 1), pch = 21, bg = "red", 
+             col = "white", cex = 2, lwd = 2)
+    }
+    
+    # Add legend
+    legend("topright", 
+           legend = c("Population", "Current"),
+           pch = c(21, 21),
+           pt.bg = c("#2ECC71", "red"),
+           col = c("white", "white"),
+           pt.cex = c(1.2, 2),
+           bg = adjustcolor("#34495E", alpha.f = 0.8),
+           box.col = "white")
+  })
 }
 
-# Create Shiny app ----
 shinyApp(ui = ui, server = server)
 ```
 
