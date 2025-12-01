@@ -217,6 +217,7 @@ server <- function(input, output, session) {
   output$bottleneckPlot <- renderPlot({
     pops <- history()
     gens <- 1:length(pops)
+    counts <- genotype_counts()
     
     # Set up plot area
     par(bg = "#2C3E50", fg = "white", col.main = "white", 
@@ -232,6 +233,31 @@ server <- function(input, output, session) {
     # Add grid
     grid(col = "gray30", lty = 3)
     
+    current_pop <- tail(pops, 1)
+    if (current_pop > 0) {
+      prop_AA <- counts$dominant_homozygous / current_pop
+      prop_Aa <- counts$heterozygous / current_pop
+      prop_aa <- counts$recessive_homozygous / current_pop
+      
+      # Create stacked areas for genotypes
+      if (length(pops) > 1) {
+        # Calculate y-values for each genotype section
+        y_aa <- pops * prop_aa  # Recessive homozygous at the bottom
+        y_Aa <- pops * prop_Aa + y_aa  # Heterozygous in the middle
+        y_AA <- pops * prop_AA + y_Aa  # Dominant homozygous at the top (should equal pops)
+        
+        # Draw the three genotype sections
+        polygon(c(gens, rev(gens)), c(y_AA, rev(pops)),
+                col = adjustcolor("#E74C3C", alpha.f = 0.7),  # Red for dominant homozygous
+                border = NA)
+        polygon(c(gens, rev(gens)), c(y_Aa, rev(y_AA)),
+                col = adjustcolor("#F39C12", alpha.f = 0.7),  # Orange for heterozygous
+                border = NA)
+        polygon(c(gens, rev(gens)), c(y_aa, rev(y_Aa)),
+                col = adjustcolor("#3498DB", alpha.f = 0.7),  # Blue for recessive homozygous
+                border = NA)
+      }
+    }
     # Fill area under curve
     polygon(c(gens, rev(gens)), c(pops, rep(0, length(pops))),
             col = adjustcolor("lightgreen", alpha.f = 0.6),
