@@ -258,13 +258,16 @@ server <- function(input, output, session) {
                 border = NA)
       }
     }
+    
+    
+    
     # Fill area under curve
-    polygon(c(gens, rev(gens)), c(pops, rep(0, length(pops))),
-            col = adjustcolor("lightgreen", alpha.f = 0.6),
-            border = NA)
+    #polygon(c(gens, rev(gens)), c(pops, rep(0, length(pops))),
+    #        col = adjustcolor("lightgreen", alpha.f = 0.6),
+    #        border = NA)
     
     # Add line
-    lines(gens, pops, type = "l", lwd = 3, col = "#27AE60")
+    #lines(gens, pops, type = "l", lwd = 3, col = "#27AE60")
     
     # Add points
     points(gens, pops, pch = 21, bg = "#2ECC71", col = "white", cex = 1.2)
@@ -277,11 +280,14 @@ server <- function(input, output, session) {
     
     # Add legend
     legend("topright", 
-           legend = c("Population", "Current"),
-           pch = c(21, 21),
-           pt.bg = c("#2ECC71", "red"),
-           col = c("white", "white"),
-           pt.cex = c(1.2, 2),
+           legend = c("AA (Dominant Homozygous)", "Aa (Heterozygous)", "aa (Recessive Homozygous)", "Total Population"),
+           fill = c(adjustcolor("#E74C3C", alpha.f = 0.7), 
+                   adjustcolor("#F39C12", alpha.f = 0.7), 
+                   adjustcolor("#3498DB", alpha.f = 0.7),
+                   NA),
+           border = c(NA, NA, NA, "white"),
+           lty = c(NA, NA, NA, 1),
+           lwd = c(NA, NA, NA, 2),
            bg = adjustcolor("#34495E", alpha.f = 0.8),
            box.col = "white")
   })
