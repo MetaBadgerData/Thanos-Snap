@@ -322,27 +322,24 @@ server <- function(input, output, session) {
   
   output$genotypeTable <- renderTable({
     counts <- genotype_counts()
-    data.frame(
-      Genotype = c("AA (Dominant Homozygous)", "Aa (Heterozygous)", "aa (Recessive Homozygous)"),
-      Count = c(counts$dominant_homozygous, counts$heterozygous, counts$recessive_homozygous),
-      Percentage = c(
-        round(counts$dominant_homozygous / population() * 100, 1),
-        round(counts$heterozygous / population() * 100, 1),
-        round(counts$recessive_homozygous / population() * 100, 1)
+    pop <- population()
+    if (pop > 0) {
+      data.frame(
+        Genotype = c("AA (Dominant Homozygous)", "Aa (Heterozygous)", "aa (Recessive Homozygous)"),
+        Count = c(counts$dominant_homozygous, counts$heterozygous, counts$recessive_homozygous),
+        Percentage = c(
+          round(counts$dominant_homozygous / pop * 100, 1),
+          round(counts$heterozygous / pop * 100, 1),
+          round(counts$recessive_homozygous / pop * 100, 1)
+        )
       )
-    )
+    }
   }, bordered = TRUE, align = 'c')
-  
-  
-  
-  
-  # Outputs
-  output$nText <- renderText({
-    paste("Current Population:", round(population()))
-  })
   
   output$bottleneckPlot <- renderPlot({
     pops <- history()
+    if (length(pops) == 0) return()
+    
     gens <- 1:length(pops)
     counts <- genotype_counts()
     
@@ -374,14 +371,19 @@ server <- function(input, output, session) {
         y_AA <- pops * prop_AA + y_Aa  # Dominant homozygous at the top (should equal pops)
         
         # Draw the three genotype sections
-        polygon(c(gens, rev(gens)), c(y_AA, rev(pops)),
-                col = adjustcolor("#E74C3C", alpha.f = 0.7),  # Red for dominant homozygous
+        # 1. Bottom: recessive homozygous (aa)
+        polygon(c(gens, rev(gens)), c(y_aa, rep(0, length(pops))),
+                col = adjustcolor("#3498DB", alpha.f = 0.7),  # Blue
                 border = NA)
-        polygon(c(gens, rev(gens)), c(y_Aa, rev(y_AA)),
-                col = adjustcolor("#F39C12", alpha.f = 0.7),  # Orange for heterozygous
+        
+        # 2. Middle: heterozygous (Aa)
+        polygon(c(gens, rev(gens)), c(y_Aa, rev(y_aa)),
+                col = adjustcolor("#F39C12", alpha.f = 0.7),  # Orange
                 border = NA)
-        polygon(c(gens, rev(gens)), c(y_aa, rev(y_Aa)),
-                col = adjustcolor("#3498DB", alpha.f = 0.7),  # Blue for recessive homozygous
+        
+        # 3. Top: dominant homozygous (AA)
+        polygon(c(gens, rev(gens)), c(y_AA, rev(y_Aa)),
+                col = adjustcolor("#E74C3C", alpha.f = 0.7),  # Red
                 border = NA)
       }
     }
