@@ -54,13 +54,92 @@ snap <- function(df){
   
   #kills half the population, with new_pop being the population that remains
   new_pop <- prev_gen[3]/2
-  
+  new_pop <- floor(new_pop)
   ##uses the binomial distribution to calculate the propability and the new frequency of the allele for the now halved population
   x <- rbinom(1, size = 2*new_pop, prob = prev_gen[2])
   new_af <- x/(2*new_pop)
   
   #returns a dataframe containing the new population and allele frequency after the bottleneck event
-  return(data.frame(gen = prev_gen[1]+1, allele_frequency = prev_gen[2], population = new_pop))
+  return(data.frame(gen = prev_gen[1]+1, allele_frequency = new_af, population = new_pop))
+}
+
+
+#function that takes in frequency of dominant allele and population, then calculates the frequency and population of AA, Aa, and aa
+hardy_weinberg <- function(af, pops){
+
+#determines whether the given af is dominant or recessive, then calculates q (recessive trait) and p (dominant trait)
+  if(af > 0.5){
+    p <- af
+    q <- 1-p
+  }
+  else{
+    q <- af
+    p <- 1-q
+  }
+  
+  #calculates the genotype
+  AA <- p^2
+  Aa <- 2*(p*q)
+  aa <- q^2
+  
+  #calculates the population by the frequency of the genotype
+  AA_pops <- floor(AA * pops)
+  Aa_pops <- floor(Aa * pops)
+  aa_pops <- floor(aa*pops)
+  
+  #checks to ensure that the calculated genotype population equals the total populaton. If calculated pop is too little, add leftover to AA population, if too many, take away from aa population
+  check_pops <- AA_pops + Aa_pops + aa_pops
+  
+  if(check_pops != pops){
+    if(check_pops < pops){
+      leftover = pops - check_pops
+      AA_pops <- AA_pops + leftover
+    }
+    else{
+      over <- check_pops - pops
+      aa_pops <- aa_pops - over
+    }
+  }
+  
+  #returns a list displaying the recessive trait frequency, dominant trait frequency, genotype frequencies, and the population of each genotype
+  return(data.frame(recessive_trait_frequency = q, dominant_trait_frequency  = p, AA_frequency = AA, Aa_frequency = Aa, aa_frequency = aa,AA_population = AA_pops, Aa_population = Aa_pops, aa_population = aa_pops))
+}
+
+
+#create a function that does all the stuff so we don't need to constantly repeat code
+all_together <- function(af, pop, gens){
+  #dataframe of the initial stats of the first gen
+  stats0 <- hardy_weinberg(af, pop)
+  print(stats0)
+  
+  #stores the recessive trait frequency of the original gen
+  rtf <- stats0$recessive_trait_frequency
+  
+  #simiulates the population growth and frequency changes pre snap
+  fish1 <- fisher(rtf, pop, gens)
+  print(fish1)
+  
+  #snaps the population in half
+  snapped <- snap(fish1)
+  print(snapped)
+  
+  #stores the snapped population and recessive trait frequency
+  pop <- as.numeric(snapped$population)
+  rtf <- as.numeric(snapped$allele_frequency)
+ 
+  #simulates the population growth and frequency changes post snap
+  fish2 <- fisher(rtf, pop, gens)
+  print(fish2)
+  
+  #stores the recessive trait frequency and final population of the last gen
+  finalstats <- unlist(fish2[nrow(fish2),])
+  ftf <- finalstats[2]
+  finalpop <- finalstats[3]
+  
+  #displays the stats of the last gen
+  fstats <- hardy_weinberg(ftf, finalpop)
+  print(fstats)
+  
 }
 ```
 
