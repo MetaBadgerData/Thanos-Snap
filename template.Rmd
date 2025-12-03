@@ -199,6 +199,17 @@ for(i in 1:gens){
 
 print(current_ts_pop)
 
+
+
+
+
+#this will be used for random selection target genotype
+
+
+#drift example: freq of p in generation 1
+p1<- rbinom(1,n_alleles,p)/n_alleles
+print(p1)
+
 ```
 
 ## Section Three
