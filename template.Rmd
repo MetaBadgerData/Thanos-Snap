@@ -63,6 +63,7 @@ snap <- function(df){
   return(data.frame(gen = prev_gen[1]+1, allele_frequency = new_af, population = new_pop))
 }
 
+
 #function that takes in frequency of dominant allele and population, then calculates the frequency and population of AA, Aa, and aa
 hardy_weinberg <- function(af, pops){
 
