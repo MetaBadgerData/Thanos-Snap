@@ -12,10 +12,10 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r kayla}
 #grows the population for the next generation by taking in the population of the previous generation
-grow_pop <- function(pop){
+grow_pop <- function(pop, grow_rate){
   
   #adds 0.3 of the given pop to the given pop to get the new population
-  new_pop <- pop + (0.3*pop)
+  new_pop <- pop + (grow_rate*pop)
   
   #rounds up to the nearest whole number
   new_pop <- floor(new_pop)
@@ -24,7 +24,7 @@ grow_pop <- function(pop){
   return(new_pop)
 }
 #the function takes in the frequency of the allele (af0), the initial population (pop), and the number of generations it will run (gens)
-fisher <- function(af0, pop, gens){
+fisher <- function(af0, pop, gens, grow_rate){
   #creates a numeric vector for the allele frequency and population with the length being the number of gens plus one for the initial generation 
   af = numeric(gens + 1)
   af[1] <- af0
@@ -35,7 +35,7 @@ fisher <- function(af0, pop, gens){
   #calculates the allele frequency and population for each generation after the initial gen
   for(i in 1:gens){
     #send the pop for the current gen to a function that will calculate the population of the next gen
-    p[i+1] <- grow_pop(p[i]) 
+    p[i+1] <- grow_pop(p[i], grow_rate) 
     #uses the binomial distribution to calculate the propability and the new frequency of the allele for the next gen
     x <- rbinom(1, size = 2*p[i+1], prob = af[i])
     af[i+1] <- x/(2*p[i+1])
@@ -107,7 +107,7 @@ hardy_weinberg <- function(af, pops){
 
 
 #create a function that does all the stuff so we don't need to constantly repeat code
-all_together <- function(af, pop, gens){
+all_together <- function(af, pop, gens, grow_rate){
   #dataframe of the initial stats of the first gen
   stats0 <- hardy_weinberg(af, pop)
   print(stats0)
@@ -116,7 +116,7 @@ all_together <- function(af, pop, gens){
   rtf <- stats0$recessive_trait_frequency
   
   #simiulates the population growth and frequency changes pre snap
-  fish1 <- fisher(rtf, pop, gens)
+  fish1 <- fisher(rtf, pop, gens, grow_rate)
   print(fish1)
   
   #snaps the population in half
@@ -128,7 +128,7 @@ all_together <- function(af, pop, gens){
   rtf <- as.numeric(snapped$allele_frequency)
  
   #simulates the population growth and frequency changes post snap
-  fish2 <- fisher(rtf, pop, gens)
+  fish2 <- fisher(rtf, pop, gens, grow_rate)
   print(fish2)
   
   #stores the recessive trait frequency and final population of the last gen
