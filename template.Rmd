@@ -54,14 +54,40 @@ snap <- function(df){
   
   #kills half the population, with new_pop being the population that remains
   new_pop <- prev_gen[3]/2
-  
+  new_pop <- floor(new_pop)
   ##uses the binomial distribution to calculate the propability and the new frequency of the allele for the now halved population
   x <- rbinom(1, size = 2*new_pop, prob = prev_gen[2])
   new_af <- x/(2*new_pop)
   
   #returns a dataframe containing the new population and allele frequency after the bottleneck event
-  return(data.frame(gen = prev_gen[1]+1, allele_frequency = prev_gen[2], population = new_pop))
+  return(data.frame(gen = prev_gen[1]+1, allele_frequency = new_af, population = new_pop))
 }
+
+#function that takes in frequency of dominant allele and population, then calculates the frequency and population of AA, Aa, and aa
+hardy_weinberg <- function(af, pop){
+
+#determines whether the given af is dominant or recessive, then calculates p (recessive trait) and q (dominant trait)
+  if(af < 0.5){
+    p <- af
+    q <- 1-p
+  }
+  else{
+    q <- af
+    p <- 1-q
+  }
+  
+  #calculates the genotype
+  AA <- p^2
+  Aa <- 2*(p*q)
+  aa <- q^2
+  
+  #calculates the population by the frequency of the genotype
+  allele_pops <- c(AA = AA*pop, Aa = Aa*pop, aa = aa*pop)
+  
+  #returns a list displaying the recessive trait frequency, dominant trait frequency, genotype frequencies, and the population of each genotype
+  return(list(recessive_trait = p, dominant_trait = q, genotype_frequency = c(AA = AA, Aa = Aa, aa = aa), genotype_pop = allele_pops ))
+}
+
 ```
 
 ## Section Two
