@@ -146,43 +146,58 @@ all_together <- function(af, pop, gens){
 ## Section Two
 
 ```{r sophie}
+library(tidyverse)
 
-#SAMPLE IDEAS
-  #initial population size 200 (cats)
-  #p= A (Long hair) = .44
-  #q = a (Short hair) = .56
-  #Bottleneck event affects A (Long hair)?
+#CODE SOURCE
+
+#https://evolutionarygenetics.github.io/Chapter3.html
+#https://cran.r-project.org/web/packages/evolved/vignettes/popgen_drift.html#:~:text=file_name.jpg)-,Genetic%20drift:%20building%20intuition,You%20have%20just%20observed%20drift!
 
 
-#code from https://evolutionarygenetics.github.io/Chapter3.html
-#code from https://cran.r-project.org/web/packages/evolved/vignettes/popgen_drift.html#:~:text=file_name.jpg)-,Genetic%20drift:%20building%20intuition,You%20have%20just%20observed%20drift!
-#reference code sources in report as well
 
-#population & # of alleles
-N<-200
-n_alleles<-2*N
+#CATS
 
-#hardy weinberg: p^2+2pq+q^2=1 & genotype freqs
-p<-.44
-q<-1-p
+#long hair allele- A
+#short hair allele- a
 
+#initial pop
+pop_size<- 100#add                                   *
+total_alleles<- 2*pop_size
+
+#initial allele freqs 
+#hardy-weinberg p^2+2pq+q^2=1 where p=A and q=a
+p<- .33#add                                          *
+q<- 1-p
+
+#generations
+gens<- 20#add                                       *
+  
+ 
+
+#GENOTYPE PROPS 
+#p^2+2pq+q^2=1
 AA<-p^2
 Aa<-2*(p*q)
 aa<-q^2
-genotype_proportion<-c(AA,Aa,aa) #start tracking pop. size increases here
-print(genotype_freq)
+genotype_props<-c(AA,Aa,aa)
+genotype_pop_props<-c(AA,Aa,aa)*pop_size
+#print(data.frame(genotype_pop_props))
+#names(genotype_pop_props)<-c("AA","Aa","aa")
 
 
-#drift example: freq of p in generation 1
-p1<- rbinom(1,n_alleles,p)/n_alleles
-print(p1)
+#POPULATION INCREASES
 
-#create for-loop function
-#use genotype numbers in for-loop 
-# factor in additional (random # of?) offspring (pop. size increase)
+#discrete time logistic growth model
+current_ts_pop<- data.frame("AA"=genotype_pop_props[1],"Aa"=genotype_pop_props[2],"aa"=genotype_pop_props[3]) 
+growth_rate<- .05#add                                    *
+K<- 20000#add                                                *
+  
+for(i in 1:gens){
+  pop_incr<-current_ts_pop[i,]+(growth_rate*current_ts_pop[i,]*(1-(current_ts_pop[i,]/K))) 
+  current_ts_pop[i+1,]<-ceiling(pop_incr)
+}
 
-# other factors?
-# how to add death in bottleneck event & relation to allele
+print(current_ts_pop)
 
 ```
 
