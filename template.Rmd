@@ -201,14 +201,24 @@ print(current_ts_pop)
 
 
 
+#BOTTLENECK EVENT (THANOS SNAP)
+
+#sample for remaining population after snap
+current_ts_pop<-tail(current_ts_pop,n=1)
+snap<- .5#add                                               *
+size<-snap*rowSums(current_ts_pop)
+survivor_props<-sample(c("AA","Aa","aa"),size, replace=TRUE, current_ts_pop)
+
+survivor_props<-data.frame(survivor_props) %>% count(survivor_props) %>%   pivot_wider(names_from=survivor_props,values_from = n)
+print(survivor_props)
 
 
 #this will be used for random selection target genotype
 
 
 #drift example: freq of p in generation 1
-p1<- rbinom(1,n_alleles,p)/n_alleles
-print(p1)
+#p1<- rbinom(1,n_alleles,p)/n_alleles
+#print(p1)
 
 ```
 
