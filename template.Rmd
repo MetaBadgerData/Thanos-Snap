@@ -212,6 +212,16 @@ survivor_props<-sample(c("AA","Aa","aa"),size, replace=TRUE, current_ts_pop)
 survivor_props<-data.frame(survivor_props) %>% count(survivor_props) %>%   pivot_wider(names_from=survivor_props,values_from = n)
 print(survivor_props)
 
+#population growth and genetic drift with rbinom
+gens<- 20#add                                     *
+
+for(i in 1:gens){
+  pop_incr<-survivor_props[i,]+(growth_rate*survivor_props[i,]*(1-(survivor_props[i,]/K))) 
+  survivor_props[i+1,]<-ceiling(pop_incr)
+}
+
+print(survivor_props)
+
 
 #this will be used for random selection target genotype
 
