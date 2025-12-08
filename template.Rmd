@@ -149,12 +149,7 @@ all_together <- function(af, pop, gens, grow_rate){
 ```{r sophie}
 library(tidyverse)
 
-#CODE SOURCE
-
-#https://evolutionarygenetics.github.io/Chapter3.html
-#https://cran.r-project.org/web/packages/evolved/vignettes/popgen_drift.html#:~:text=file_name.jpg)-,Genetic%20drift:%20building%20intuition,You%20have%20just%20observed%20drift!
-
-
+# * means places to add values
 
 #CATS
 
@@ -202,14 +197,26 @@ print(current_ts_pop)
 
 
 
+#BOTTLENECK EVENT (THANOS SNAP)
 
+#sample for remaining population after snap
+current_ts_pop<-tail(current_ts_pop,n=1)
+snap<- .5#add                                               *
+size<-snap*rowSums(current_ts_pop)
+survivor_props<-sample(c("AA","Aa","aa"),size, replace=TRUE, current_ts_pop)
 
-#this will be used for random selection target genotype
+survivor_props<-data.frame(survivor_props) %>% count(survivor_props) %>%   pivot_wider(names_from=survivor_props,values_from = n)
+print(survivor_props)
 
+#population growth and genetic drift with rbinom
+gens<- 20#add                                     *
 
-#drift example: freq of p in generation 1
-p1<- rbinom(1,n_alleles,p)/n_alleles
-print(p1)
+for(i in 1:gens){
+  pop_incr<-survivor_props[i,]+(growth_rate*survivor_props[i,]*(1-(survivor_props[i,]/K))) 
+  survivor_props[i+1,]<-ceiling(pop_incr)
+}
+
+print(survivor_props)
 
 ```
 
