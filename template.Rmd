@@ -148,12 +148,7 @@ all_together <- function(af, pop, gens, grow_rate){
 ```{r sophie}
 library(tidyverse)
 
-#CODE SOURCE
-
-#https://evolutionarygenetics.github.io/Chapter3.html
-#https://cran.r-project.org/web/packages/evolved/vignettes/popgen_drift.html#:~:text=file_name.jpg)-,Genetic%20drift:%20building%20intuition,You%20have%20just%20observed%20drift!
-
-
+# * means places to add values
 
 #CATS
 
@@ -221,14 +216,6 @@ for(i in 1:gens){
 }
 
 print(survivor_props)
-
-
-#this will be used for random selection target genotype
-
-
-#drift example: freq of p in generation 1
-#p1<- rbinom(1,n_alleles,p)/n_alleles
-#print(p1)
 
 ```
 
