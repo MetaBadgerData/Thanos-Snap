@@ -470,4 +470,11 @@ shinyApp(ui = ui, server = server)
 
 #"Add population size, one or both of the initial allele frequencies, and click 'grow'! Press 'snap!' to create a bottleneck event that snaps the population in half, and click 'grow' again to watch the population increase. Press 'stop' at any point to pause the simulation. Allele proportions can be observed changing in real time during the simulation at the bottom of the graph. To reset the simulation, just enter in your population size again.
 
+
+# ADD FREQUENCIES ALONG WITH CURRENT POPULATION PROPORTIONS
+
+#below graph with current population and proportions
+
+#each allele proportion divided by current population size to create frequencies 
+
 ```
