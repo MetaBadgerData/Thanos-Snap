@@ -11,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Section One
 
 ```{r kayla}
+
 #grows the population for the next generation by taking in the population of the previous generation
 grow_pop <- function(pop, grow_rate){
   
