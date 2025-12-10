@@ -224,11 +224,13 @@ print(survivor_props)
 
 ```{r White}
 #Link to github repo: https://github.com/rstudio/shiny-examples/blob/main/001-hello/app.R
+#https://stackoverflow.com/questions/68215218/is-there-a-way-to-create-a-icon-action-button-for-r-shiny
+#link to icons https://getbootstrap.com/docs/3.3/components/#glyphicons
 library(shiny)
 library(shinythemes)
 library(tidyverse)
 
-#SOPHIES IDEAS
+#SOPHIE'S IDEAS
 # Logistic growth function
 logistic_growth <- function(current_pop, growth_rate, K) {
   new_pop <- current_pop + (growth_rate * current_pop * (1 - (current_pop / K)))
@@ -271,6 +273,8 @@ apply_snap <- function(current_pop, snap_proportion = 0.5) {
   return(survivors)
 }
 
+
+#Kayla's logic
 # Calculate Hardy-Weinberg equilibrium
 hardy_weinberg <- function(p, pop) {
   q <- 1 - p
@@ -285,11 +289,9 @@ hardy_weinberg <- function(p, pop) {
   Aa_pop <- round(Aa_freq * pop)
   aa_pop <- round(aa_freq * pop)
   
-  # Adjust for rounding errors
   total <- AA_pop + Aa_pop + aa_pop
   if (total != pop) {
     diff <- pop - total
-    # Distribute the difference to the largest genotype
     if (AA_pop >= Aa_pop & AA_pop >= aa_pop) {
       AA_pop <- AA_pop + diff
     } else if (Aa_pop >= AA_pop & Aa_pop >= aa_pop) {
@@ -338,8 +340,9 @@ ui <- fluidPage(
       br(),
       actionButton("growButton", "GROW"),
       actionButton("stopButton", "STOP"),
-      actionButton("snapButton", "SNAP!"),
-      actionButton("resetButton", "RESET"),  # Added reset button
+      actionButton("snapButton", "SNAP!", icon("scissors"), 
+    style="color: #fff; background-color: #6d3678; border-color: #2e6da4"),
+      actionButton("resetButton", "RESET"),
       
       br(),
       br(),
@@ -400,12 +403,10 @@ server <- function(input, output, session) {
     initialize_population()
   }, ignoreInit = FALSE)
   
-  # Reset button
   observeEvent(input$resetButton, {
     initialize_population()
   })
   
-  # Timer for continuous growth - FIXED VERSION
   observe({
     if (growing()) {
       invalidateLater(500, session)
@@ -414,10 +415,8 @@ server <- function(input, output, session) {
         if (!is.null(current_data) && length(current_data) > 0) {
           
           if (phase() == "Pre-snap") {
-            # Get the last generation from pre-snap data
             last_gen <- tail(current_data[[1]], 1)
             
-            # Apply logistic growth to each genotype separately
             new_AA <- logistic_growth(last_gen$AA, input$growthInput, input$KInput)
             new_Aa <- logistic_growth(last_gen$Aa, input$growthInput, input$KInput)
             new_aa <- logistic_growth(last_gen$aa, input$growthInput, input$KInput)
@@ -659,9 +658,9 @@ server <- function(input, output, session) {
       # Add vertical line for snap event if it occurred
       if (length(current_data) > 1) {
         snap_gen <- current_data[[2]]$generation[1]
-        abline(v = snap_gen, lty = 2, col = "red", lwd = 2)
+        abline(v = snap_gen, lty = 2, col = "purple", lwd = 2)
         text(snap_gen, max(AA_counts + Aa_counts + aa_counts) * 0.95, 
-             "SNAP!", col = "red", pos = 4, cex = 1.2)
+             "SNAP!", col = "purple", pos = 4, cex = 1.2)
       }
     }
     
