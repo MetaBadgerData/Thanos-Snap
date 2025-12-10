@@ -226,119 +226,149 @@ print(survivor_props)
 #Link to github repo: https://github.com/rstudio/shiny-examples/blob/main/001-hello/app.R
 library(shiny)
 library(shinythemes)
+library(tidyverse)
+
+#SOPHIES IDEAS
+# Logistic growth function
+logistic_growth <- function(current_pop, growth_rate, K) {
+  new_pop <- current_pop + (growth_rate * current_pop * (1 - (current_pop / K)))
+  return(ceiling(new_pop))
+}
+
+# Bottleneck event (Thanos snap) with sampling
+apply_snap <- function(current_pop, snap_proportion = 0.5) {
+  # Get the last generation
+  last_gen <- tail(current_pop, 1)
+  total_pop <- sum(last_gen)
+  
+  # Calculate survivors
+  size <- snap_proportion * total_pop
+  
+  # Create genotype vector based on proportions
+  genotypes <- c(
+    rep("AA", last_gen$AA),
+    rep("Aa", last_gen$Aa),
+    rep("aa", last_gen$aa)
+  )
+  
+  # Sample survivors
+  if (length(genotypes) > 0 && size > 0) {
+    survivor_genotypes <- sample(genotypes, size, replace = FALSE)
+    
+    # Count survivors by genotype
+    survivor_counts <- table(survivor_genotypes)
+    
+    # Create data frame with all genotypes (ensuring all are present)
+    survivors <- data.frame(
+      AA = ifelse("AA" %in% names(survivor_counts), survivor_counts[["AA"]], 0),
+      Aa = ifelse("Aa" %in% names(survivor_counts), survivor_counts[["Aa"]], 0),
+      aa = ifelse("aa" %in% names(survivor_counts), survivor_counts[["aa"]], 0)
+    )
+  } else {
+    survivors <- data.frame(AA = 0, Aa = 0, aa = 0)
+  }
+  
+  return(survivors)
+}
+
+# Calculate Hardy-Weinberg equilibrium
+hardy_weinberg <- function(p, pop) {
+  q <- 1 - p
+  
+  # Calculate genotype frequencies
+  AA_freq <- p^2
+  Aa_freq <- 2 * p * q
+  aa_freq <- q^2
+  
+  # Calculate genotype populations
+  AA_pop <- round(AA_freq * pop)
+  Aa_pop <- round(Aa_freq * pop)
+  aa_pop <- round(aa_freq * pop)
+  
+  # Adjust for rounding errors
+  total <- AA_pop + Aa_pop + aa_pop
+  if (total != pop) {
+    diff <- pop - total
+    # Distribute the difference to the largest genotype
+    if (AA_pop >= Aa_pop & AA_pop >= aa_pop) {
+      AA_pop <- AA_pop + diff
+    } else if (Aa_pop >= AA_pop & Aa_pop >= aa_pop) {
+      Aa_pop <- Aa_pop + diff
+    } else {
+      aa_pop <- aa_pop + diff
+    }
+  }
+  
+  return(list(
+    dominant_freq = p,
+    recessive_freq = q,
+    AA_frequency = AA_freq,
+    Aa_frequency = Aa_freq,
+    aa_frequency = aa_freq,
+    AA_population = AA_pop,
+    Aa_population = Aa_pop,
+    aa_population = aa_pop
+  ))
+}
 
 ui <- fluidPage(
   theme = shinytheme("superhero"),
-  titlePanel("Thanos Snap!"),
+  titlePanel("Thanos Snap! - Cat Hair Genetics"),
   
   sidebarLayout(
     sidebarPanel(
-      numericInput("popInput", "Set Population:", value = 50, min = 1),
+      h4("Population Parameters"),
+      numericInput("popInput", "Initial Population:", value = 100, min = 1),
+      numericInput("KInput", "Carrying Capacity (K):", value = 2000, min = 10),
+      numericInput("growthInput", "Growth Rate (r):", value = 0.05, min = 0, max = 1, step = 0.01),
+      
       br(),
-      actionButton("growButton", "GROW"),
-      actionButton("stopButton", "STOP"),
-      actionButton("goButton", "SNAP!"),
       h4("Allele Frequencies"),
       helpText("A = long hair (dominant), a = short hair (recessive)"),
       numericInput("pFreq", "Dominant Allele Frequency (p):", 
-                  value = 0.5, min = 0, max = 1, step = 0.1),
+                  value = 0.33, min = 0, max = 1, step = 0.01),
       numericInput("qFreq", "Recessive Allele Frequency (q):", 
-                  value = 0.5, min = 0, max = 1, step = 0.1)
+                  value = 0.67, min = 0, max = 1, step = 0.01),
+      
+      br(),
+      h4("Bottleneck Event"),
+      sliderInput("snapInput", "Snap Proportion:", 
+                  value = 0.5, min = 0.1, max = 0.9, step = 0.1),
+      
+      br(),
+      actionButton("growButton", "GROW"),
+      actionButton("stopButton", "STOP"),
+      actionButton("snapButton", "SNAP!"),
+      actionButton("resetButton", "RESET"),  # Added reset button
+      
+      br(),
+      br(),
+      h5("Current Status:"),
+      textOutput("statusText"),
+      br(),
+      h5("Current Population:"),
+      textOutput("currentPopulation"),
+      br(),
+      h5("Current Genotype Counts:"),
+      textOutput("genotypeCounts")
     ),
     
     mainPanel(
-      plotOutput("bottleneckPlot", height = "400px"),
+      plotOutput("genotypePlot", height = "500px"),
       br(),
-      textOutput("nText")
+      tableOutput("genotypeTable")
     )
   )
 )
 
 server <- function(input, output, session) {
   # Reactive values
-  population <- reactiveVal(50)
-  history <- reactiveVal(c(50))
+  population_data <- reactiveVal(NULL)
   growing <- reactiveVal(FALSE)
-  max_pop <- reactiveVal(50)
+  phase <- reactiveVal("Pre-snap")
+  history <- reactiveVal(list())
   
-  
-  
-  # Calculate genotype counts based on Hardy-Weinberg
-  genotype_counts <- reactive({
-    pop <- population()
-    p <- input$pFreq
-    q <- input$qFreq
-    
-    # Ensure frequencies sum to 1
-    total <- p + q
-    if (total > 0) {
-      p <- p / total
-      q <- q / total
-    }
-    
-    
-    list(
-      dominant_homozygous = round(pop * p^2),
-      heterozygous = round(pop * 2 * p * q),
-      recessive_homozygous = round(pop * q^2)
-    )
-  })
-  
-  
-  
-  # Timer for continuous growth
-  observe({
-    if (growing()) {
-      invalidateLater(200, session)  # Update every 200ms for smooth growth
-      isolate({
-        current_pop <- population()
-        new_pop <- current_pop * 1.05
-        population(new_pop)
-        
-        # Update max population if needed
-        if (new_pop > max_pop()) {
-          max_pop(new_pop)
-        }
-        
-        # Update history
-        new_history <- c(history(), new_pop)
-        if (length(new_history) > 100) {
-          new_history <- tail(new_history, 100)
-        }
-        history(new_history)
-      })
-    }
-  })
-  
-  # Event observers
-  observeEvent(input$popInput, {
-    population(input$popInput)
-    history(c(input$popInput))
-    max_pop(input$popInput)
-  })
-  
-  observeEvent(input$growButton, {
-    growing(TRUE)
-  })
-  
-  observeEvent(input$stopButton, {
-    growing(FALSE)
-  })
-  
-  observeEvent(input$goButton, {
-    growing(FALSE)
-    new_pop <- max(1, round(population() / 2))
-    population(new_pop)
-    new_history <- c(history(), new_pop)
-    if (length(new_history) > 100) {
-      new_history <- tail(new_history, 100)
-    }
-    history(new_history)
-  })
-  
-  
-  
-  # Update q frequency when p changes to maintain sum = 1
+  # Update q frequency when p changes
   observeEvent(input$pFreq, {
     updateNumericInput(session, "qFreq", value = 1 - input$pFreq)
   })
@@ -347,115 +377,338 @@ server <- function(input, output, session) {
     updateNumericInput(session, "pFreq", value = 1 - input$qFreq)
   })
   
-  # Outputs
-  output$nText <- renderText({
-    counts <- genotype_counts()
-    paste("Current Population:", round(population()),
-          "| AA:", counts$dominant_homozygous,
-          "| Aa:", counts$heterozygous, 
-          "| aa:", counts$recessive_homozygous)
+  # Initialize population
+  initialize_population <- function() {
+    hw <- hardy_weinberg(input$pFreq, input$popInput)
+    initial_data <- data.frame(
+      generation = 0,
+      AA = hw$AA_population,
+      Aa = hw$Aa_population,
+      aa = hw$aa_population,
+      total = hw$AA_population + hw$Aa_population + hw$aa_population,
+      p_freq = hw$dominant_freq,
+      q_freq = hw$recessive_freq,
+      phase = "Initial"
+    )
+    population_data(list(initial_data))
+    history(list(pre_snap = initial_data))
+    phase("Pre-snap")
+    growing(FALSE)
+  }
+  
+  observeEvent(input$popInput, {
+    initialize_population()
+  }, ignoreInit = FALSE)
+  
+  # Reset button
+  observeEvent(input$resetButton, {
+    initialize_population()
   })
   
-  output$genotypeTable <- renderTable({
-    counts <- genotype_counts()
-    pop <- population()
-    if (pop > 0) {
-      data.frame(
-        Genotype = c("AA (Dominant Homozygous)", "Aa (Heterozygous)", "aa (Recessive Homozygous)"),
-        Count = c(counts$dominant_homozygous, counts$heterozygous, counts$recessive_homozygous),
-        Percentage = c(
-          round(counts$dominant_homozygous / pop * 100, 1),
-          round(counts$heterozygous / pop * 100, 1),
-          round(counts$recessive_homozygous / pop * 100, 1)
-        )
-      )
+  # Timer for continuous growth - FIXED VERSION
+  observe({
+    if (growing()) {
+      invalidateLater(500, session)
+      isolate({
+        current_data <- population_data()
+        if (!is.null(current_data) && length(current_data) > 0) {
+          
+          if (phase() == "Pre-snap") {
+            # Get the last generation from pre-snap data
+            last_gen <- tail(current_data[[1]], 1)
+            
+            # Apply logistic growth to each genotype separately
+            new_AA <- logistic_growth(last_gen$AA, input$growthInput, input$KInput)
+            new_Aa <- logistic_growth(last_gen$Aa, input$growthInput, input$KInput)
+            new_aa <- logistic_growth(last_gen$aa, input$growthInput, input$KInput)
+            
+            # Calculate allele frequencies
+            total_pop <- new_AA + new_Aa + new_aa
+            p_freq <- (2*new_AA + new_Aa) / (2*total_pop)
+            q_freq <- 1 - p_freq
+            
+            new_gen <- data.frame(
+              generation = last_gen$generation + 1,
+              AA = new_AA,
+              Aa = new_Aa,
+              aa = new_aa,
+              total = total_pop,
+              p_freq = p_freq,
+              q_freq = q_freq,
+              phase = "Pre-snap"
+            )
+            
+            # Update pre-snap data
+            updated_pre_snap <- rbind(current_data[[1]], new_gen)
+            
+            # If we have post-snap data, keep it
+            if (length(current_data) == 2) {
+              population_data(list(updated_pre_snap, current_data[[2]]))
+              history(list(pre_snap = updated_pre_snap, 
+                          snap = history()$snap, 
+                          post_snap = history()$post_snap))
+            } else {
+              population_data(list(updated_pre_snap))
+              history(list(pre_snap = updated_pre_snap))
+            }
+            
+          } else if (phase() == "Post-snap") {
+            # Get the last generation from post-snap data
+            if (length(current_data) == 2) {
+              last_gen <- tail(current_data[[2]], 1)
+              
+              # Apply logistic growth to each genotype separately
+              new_AA <- logistic_growth(last_gen$AA, input$growthInput, input$KInput)
+              new_Aa <- logistic_growth(last_gen$Aa, input$growthInput, input$KInput)
+              new_aa <- logistic_growth(last_gen$aa, input$growthInput, input$KInput)
+              
+              # Calculate allele frequencies
+              total_pop <- new_AA + new_Aa + new_aa
+              p_freq <- (2*new_AA + new_Aa) / (2*total_pop)
+              q_freq <- 1 - p_freq
+              
+              new_gen <- data.frame(
+                generation = last_gen$generation + 1,
+                AA = new_AA,
+                Aa = new_Aa,
+                aa = new_aa,
+                total = total_pop,
+                p_freq = p_freq,
+                q_freq = q_freq,
+                phase = "Post-snap"
+              )
+              
+              # Update post-snap data
+              updated_post_snap <- rbind(current_data[[2]], new_gen)
+              population_data(list(current_data[[1]], updated_post_snap))
+              history(list(pre_snap = history()$pre_snap, 
+                          snap = history()$snap, 
+                          post_snap = updated_post_snap))
+            }
+          }
+        }
+      })
     }
-  }, bordered = TRUE, align = 'c')
+  })
   
-  output$bottleneckPlot <- renderPlot({
-    pops <- history()
-    if (length(pops) == 0) return()
+  # Event observers
+  observeEvent(input$growButton, {
+    growing(TRUE)
+    if (is.null(population_data())) {
+      initialize_population()
+    }
+  })
+  
+  observeEvent(input$stopButton, {
+    growing(FALSE)
+  })
+  
+  observeEvent(input$snapButton, {
+    # Stop growth temporarily
+    was_growing <- growing()
+    growing(FALSE)
     
-    gens <- 1:length(pops)
-    counts <- genotype_counts()
+    if (!is.null(population_data())) {
+      current_data <- population_data()
+      
+      # If we're in pre-snap phase, apply the snap
+      if (phase() == "Pre-snap") {
+        last_gen <- tail(current_data[[1]], 1)
+        
+        # Create current population data frame for sampling
+        current_pop <- data.frame(
+          AA = last_gen$AA,
+          Aa = last_gen$Aa,
+          aa = last_gen$aa
+        )
+        
+        # Apply bottleneck
+        survivors <- apply_snap(current_pop, input$snapInput)
+        
+        # Calculate new allele frequencies
+        total_survivors <- sum(survivors)
+        p_freq <- ifelse(total_survivors > 0, (2*survivors$AA + survivors$Aa) / (2*total_survivors), 0)
+        q_freq <- 1 - p_freq
+        
+        snap_gen <- data.frame(
+          generation = last_gen$generation + 1,
+          AA = survivors$AA,
+          Aa = survivors$Aa,
+          aa = survivors$aa,
+          total = total_survivors,
+          p_freq = p_freq,
+          q_freq = q_freq,
+          phase = "Snap"
+        )
+        
+        # Switch to post-snap phase
+        phase("Post-snap")
+        
+        # Update data - keep pre-snap history and add snap + initial post-snap
+        population_data(list(current_data[[1]], snap_gen))
+        history(list(pre_snap = current_data[[1]], 
+                    snap = snap_gen, 
+                    post_snap = snap_gen))
+        
+        # Restart growth if it was running
+        if (was_growing) {
+          growing(TRUE)
+        }
+      }
+    }
+  })
+  
+  # Status text
+  output$statusText <- renderText({
+    if (is.null(population_data())) {
+      "Click GROW to start simulation"
+    } else {
+      paste(phase(), "phase | Generation:", 
+            ifelse(phase() == "Pre-snap", 
+                   tail(population_data()[[1]], 1)$generation,
+                   tail(population_data()[[2]], 1)$generation))
+    }
+  })
+  
+  # Current population text
+  output$currentPopulation <- renderText({
+    if (is.null(population_data())) return("N/A")
     
-    # Set up plot area
+    current_data <- population_data()
+    if (phase() == "Pre-snap") {
+      last_gen <- tail(current_data[[1]], 1)
+    } else {
+      last_gen <- tail(current_data[[2]], 1)
+    }
+    
+    paste("Total:", last_gen$total, "cats")
+  })
+  
+  # Genotype counts text
+  output$genotypeCounts <- renderText({
+    if (is.null(population_data())) return("N/A")
+    
+    current_data <- population_data()
+    if (phase() == "Pre-snap") {
+      last_gen <- tail(current_data[[1]], 1)
+    } else {
+      last_gen <- tail(current_data[[2]], 1)
+    }
+    
+    paste("AA:", last_gen$AA, "| Aa:", last_gen$Aa, "| aa:", last_gen$aa)
+  })
+  
+  # Genotype composition plot (main visualization)
+  output$genotypePlot <- renderPlot({
+    if (is.null(population_data())) {
+      # Show empty plot with instructions
+      par(bg = "#2C3E50", fg = "white", col.main = "white", 
+          col.lab = "white", col.axis = "white")
+      plot(0, 0, type = "n", xlim = c(0, 1), ylim = c(0, 1),
+           xaxt = "n", yaxt = "n", xlab = "", ylab = "", main = "")
+      text(0.5, 0.5, "Click GROW to start simulation", 
+           cex = 1.5, col = "white")
+      return()
+    }
+    
+    current_data <- population_data()
+    
+    # Combine all data for the entire history
+    if (length(current_data) == 1) {
+      plot_data <- current_data[[1]]
+    } else {
+      plot_data <- rbind(current_data[[1]], current_data[[2]])
+    }
+    
+    # Prepare data for stacked area plot
+    generations <- plot_data$generation
+    AA_counts <- plot_data$AA
+    Aa_counts <- plot_data$Aa
+    aa_counts <- plot_data$aa
+    
     par(bg = "#2C3E50", fg = "white", col.main = "white", 
         col.lab = "white", col.axis = "white")
     
-    plot(gens, pops, type = "n",
-         xlab = "Time Step", ylab = "Population",
-         main = "Population Dynamics: Thanos Snap!",
-         ylim = c(0, max_pop() * 1.1),
-         xlim = c(1, max(10, length(pops))),
-         cex.main = 1.2, cex.lab = 1.1, font.main = 2)
+    # Set up plot area
+    plot(generations, AA_counts + Aa_counts + aa_counts, type = "n",
+         xlab = "Generation", ylab = "Number of Cats",
+         main = "Cat Hair Genotype Composition Over Time",
+         ylim = c(0, max(AA_counts + Aa_counts + aa_counts) * 1.1),
+         xlim = c(0, max(generations) + 1))
     
     # Add grid
     grid(col = "gray30", lty = 3)
     
-    current_pop <- tail(pops, 1)
-    if (current_pop > 0) {
-      prop_AA <- counts$dominant_homozygous / current_pop
-      prop_Aa <- counts$heterozygous / current_pop
-      prop_aa <- counts$recessive_homozygous / current_pop
+    # Create stacked areas for genotype composition
+    if (length(generations) > 1) {
+      # Bottom layer: aa genotype (short hair - recessive homozygous)
+      polygon(c(generations, rev(generations)), 
+              c(AA_counts + Aa_counts + aa_counts, rep(0, length(generations))),
+              col = adjustcolor("#3498DB", alpha.f = 0.7), border = NA)
       
-      # Create stacked areas for genotypes
-      if (length(pops) > 1) {
-        # Calculate y-values for each genotype section
-        y_aa <- pops * prop_aa  # Recessive homozygous at the bottom
-        y_Aa <- pops * prop_Aa + y_aa  # Heterozygous in the middle
-        y_AA <- pops * prop_AA + y_Aa  # Dominant homozygous at the top (should equal pops)
-        
-        # Draw the three genotype sections
-        # 1. Bottom: recessive homozygous (aa)
-        polygon(c(gens, rev(gens)), c(y_aa, rep(0, length(pops))),
-                col = adjustcolor("#3498DB", alpha.f = 0.7),  # Blue
-                border = NA)
-        
-        # 2. Middle: heterozygous (Aa)
-        polygon(c(gens, rev(gens)), c(y_Aa, rev(y_aa)),
-                col = adjustcolor("#F39C12", alpha.f = 0.7),  # Orange
-                border = NA)
-        
-        # 3. Top: dominant homozygous (AA)
-        polygon(c(gens, rev(gens)), c(y_AA, rev(y_Aa)),
-                col = adjustcolor("#E74C3C", alpha.f = 0.7),  # Red
-                border = NA)
+      # Middle layer: Aa genotype (long hair - heterozygous)
+      polygon(c(generations, rev(generations)), 
+              c(AA_counts + Aa_counts, rev(AA_counts + Aa_counts + aa_counts)),
+              col = adjustcolor("#F39C12", alpha.f = 0.7), border = NA)
+      
+      # Top layer: AA genotype (long hair - homozygous dominant)
+      polygon(c(generations, rev(generations)), 
+              c(AA_counts, rev(AA_counts + Aa_counts)),
+              col = adjustcolor("#E74C3C", alpha.f = 0.7), border = NA)
+      
+      # Add vertical line for snap event if it occurred
+      if (length(current_data) > 1) {
+        snap_gen <- current_data[[2]]$generation[1]
+        abline(v = snap_gen, lty = 2, col = "red", lwd = 2)
+        text(snap_gen, max(AA_counts + Aa_counts + aa_counts) * 0.95, 
+             "SNAP!", col = "red", pos = 4, cex = 1.2)
       }
     }
     
-    
-    
-    # Fill area under curve
-    #polygon(c(gens, rev(gens)), c(pops, rep(0, length(pops))),
-    #        col = adjustcolor("lightgreen", alpha.f = 0.6),
-    #        border = NA)
-    
-    # Add line
-    #lines(gens, pops, type = "l", lwd = 3, col = "#27AE60")
-    
-    # Add points
-    points(gens, pops, pch = 21, bg = "#2ECC71", col = "white", cex = 1.2)
-    
-    # Highlight current point
-    if (length(pops) > 0) {
-      points(length(pops), tail(pops, 1), pch = 21, bg = "red", 
-             col = "white", cex = 2, lwd = 2)
-    }
-    
     # Add legend
-    legend("topright", 
-           legend = c("AA (Dominant Homozygous)", "Aa (Heterozygous)", "aa (Recessive Homozygous)", "Total Population"),
-           fill = c(adjustcolor("#E74C3C", alpha.f = 0.7), 
-                   adjustcolor("#F39C12", alpha.f = 0.7), 
+    legend("topright",
+           legend = c("AA (long hair)", "Aa (long hair)", "aa (short hair)", "Bottleneck"),
+           fill = c(adjustcolor("#E74C3C", alpha.f = 0.7),
+                   adjustcolor("#F39C12", alpha.f = 0.7),
                    adjustcolor("#3498DB", alpha.f = 0.7),
                    NA),
-           border = c(NA, NA, NA, "white"),
-           lty = c(NA, NA, NA, 1),
+           border = c(NA, NA, NA, "red"),
+           lty = c(NA, NA, NA, 2),
            lwd = c(NA, NA, NA, 2),
            bg = adjustcolor("#34495E", alpha.f = 0.8),
            box.col = "white")
   })
+  
+  # Genotype table
+  output$genotypeTable <- renderTable({
+    if (is.null(population_data())) return()
+    
+    current_data <- population_data()
+    if (phase() == "Pre-snap") {
+      last_gen <- tail(current_data[[1]], 1)
+    } else {
+      last_gen <- tail(current_data[[2]], 1)
+    }
+    
+    total <- last_gen$total
+    if (total == 0) {
+      data.frame(
+        Genotype = c("AA", "Aa", "aa"),
+        Phenotype = c("Long hair", "Long hair", "Short hair"),
+        Count = c(0, 0, 0),
+        Percentage = c("0%", "0%", "0%"),
+        Description = c("Homozygous dominant", "Heterozygous", "Homozygous recessive")
+      )
+    } else {
+      data.frame(
+        Genotype = c("AA (Homozygous Dominant)", "Aa (Heterozygous)", "aa (Homozygous Recessive)"),
+        Phenotype = c("Long hair", "Long hair", "Short hair"),
+        Count = c(last_gen$AA, last_gen$Aa, last_gen$aa),
+        Percentage = paste0(round(c(last_gen$AA/total, last_gen$Aa/total, last_gen$aa/total) * 100, 1), "%"),
+        Description = c("Two dominant alleles", "One dominant, one recessive allele", "Two recessive alleles")
+      )
+    }
+  }, bordered = TRUE, align = 'c', striped = TRUE)
 }
 
 shinyApp(ui = ui, server = server)
