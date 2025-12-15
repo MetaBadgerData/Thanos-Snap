@@ -359,9 +359,17 @@ ui <- fluidPage(
     mainPanel(
       plotOutput("genotypePlot", height = "500px"),
       br(),
-      tableOutput("genotypeTable"),
+      div(tableOutput("genotypeTable"), align = "center"),
       br(),
-      h5("USER MANUAL")
+      h5("USER MANUAL", align = "center"),
+      p("Step 1: Select your initial population you want to simulate. Located on the panel on the left."),
+      p("Step 2: Next, Select the the rate of which you will want the population to grow at. YOU ARE IN CONTROL."),
+      p("Step 3: Then, Specify the frequency on which your population will represent. How frequent would you like to see Dominant allele's? And Vice-versa."),
+      p("Step 4: Once all of the user paramterized input has been etner you can now proceed to press the buttons..."),
+      p("GROW: Starts the simulation with your given input."),
+      p("STOP: Stops the simulation"),
+      p("SNAP!: causes a bottleneck event simulation the THANOS SNAP cutting your population in half. (You can only snap once per simulation)"),
+      p("RESET: Resets your simulation allowing to re-enter your inputs.")
     )
   )
 )
@@ -668,18 +676,27 @@ server <- function(input, output, session) {
     
     # Add legend
     legend("topright",
-           legend = c("AA (long hair)", "Aa (long hair)", "aa (short hair)", "Bottleneck"),
-           fill = c(adjustcolor("#E74C3C", alpha.f = 0.7),
-                   adjustcolor("#F39C12", alpha.f = 0.7),
-                   adjustcolor("#3498DB", alpha.f = 0.7),
-                   NA),
-           border = c(NA, NA, NA, "red"),
-           lty = c(NA, NA, NA, 2),
-           lwd = c(NA, NA, NA, 2),
-           bg = adjustcolor("#34495E", alpha.f = 0.8),
-           box.col = "white")
+      legend = c(
+      "aa (short hair, recessive)",
+      "Aa (long hair, heterozygous)",
+      "AA (long hair, dominant)",
+      "Bottleneck"
+      ),
+      fill = c(
+        adjustcolor("#F39C12", alpha.f = 0.7),
+        adjustcolor("#E74C3C", alpha.f = 0.7),
+        adjustcolor("#3498DB", alpha.f = 0.7),
+        NA
+      ),
+      #E74C3C
+      #F39C12
+    border = c(NA, NA, NA, "purple"),
+    lty = c(NA, NA, NA, 2),
+    lwd = c(NA, NA, NA, 2),
+    bg = adjustcolor("#34495E", alpha.f = 0.8),
+    box.col = "white"
+    )
   })
-  
   # Genotype table
   output$genotypeTable <- renderTable({
     if (is.null(population_data())) return()
