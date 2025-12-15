@@ -341,7 +341,7 @@ ui <- fluidPage(
       actionButton("growButton", "GROW"),
       actionButton("stopButton", "STOP"),
       actionButton("snapButton", "SNAP!", icon("scissors"), 
-    style="color: #fff; background-color: #6d3678; border-color: #2e6da4"),
+    style="color: #fff; background-color: #6d3678; border-color: ##573D76"),
       actionButton("resetButton", "RESET"),
       
       br(),
@@ -359,7 +359,9 @@ ui <- fluidPage(
     mainPanel(
       plotOutput("genotypePlot", height = "500px"),
       br(),
-      tableOutput("genotypeTable")
+      tableOutput("genotypeTable"),
+      br(),
+      h5("USER MANUAL")
     )
   )
 )
